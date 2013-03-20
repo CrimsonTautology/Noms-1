@@ -3,8 +3,6 @@
 //	Author:			Malachi
 //	Version:		(see PLUGIN_VERSION)
 //	Description:
-//					Plugin displays the current status of alltalk and teamtalk in 
-//					response to chat commands ("!alltalk") and at the beginning of a round.
 //
 // * Changelog (date/version/description):
 // * 2013-01-23	-	0.1.1		-	initial dev version
@@ -17,6 +15,8 @@
 // * 2013-03-18 -   1.0.0		-   bumped version for release, commented out debug msg
 // * 2013-03-18 -   1.0.1		-   uncommented accidentally commented out debug msg, return !noms command to chat
 // * 2013-03-18 -   1.1.0		-   added tests to honor "/" silent chat
+// * 2013-03-18 -   1.2.0		-   Billeh: code cleanup, now use registered command
+// * 2013-03-18 -   1.2.1		-   style cleanup
 // *                                
 //	------------------------------------------------------------------------------------
 
@@ -26,9 +26,11 @@
 
 #pragma semicolon 1
 
-#define PLUGIN_VERSION	"1.1.0"
+#define PLUGIN_VERSION	"1.2.1"
+#define ADMIN_NOMINATION "Console"
+#define NAME_SIZE 32
 
-new Handle:g_NominateList = INVALID_HANDLE;
+new Handle:g_NominateMaps = INVALID_HANDLE;
 new Handle:g_NominateOwners = INVALID_HANDLE;
 
 
@@ -44,121 +46,66 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	g_NominateList = CreateArray( ByteCountToCells(33) );
+	g_NominateMaps   = CreateArray(ByteCountToCells(NAME_SIZE));
 	g_NominateOwners = CreateArray(1);
-
-	AddCommandListener(Command_Say, "say");
-	AddCommandListener(Command_Say, "say_team");			
+	RegConsoleCmd("sm_noms", Command_Noms, "Display list of nominated maps to players.");
 }
 
 
-public Action:Command_Say(client, const String:command[], args)
-{	
-	new String:text[192];
-	GetCmdArgString(text, sizeof(text));
-	
-	new startidx = 0;
-	if (text[0] == '"')
+public Action:Command_Noms(client, args)
+{
+
+	if (HasEndOfMapVoteFinished())
 	{
-		startidx = 1;
-		
-		new len = strlen(text);
-		if (text[len-1] == '"')
-		{
-			text[len-1] = '\0';
-		}
+		PrintToChatAll("\x04[Noms]\x01 -map vote completed-");
 	}
-	
-	if(StrEqual(text[startidx], "!noms") || StrEqual(text[startidx], "/noms"))
+	else
 	{
-		ClearArray(g_NominateList);
-		ClearArray(g_NominateOwners);
-
-		GetNominatedMapList(g_NominateList, g_NominateOwners);
-		
-		new numNominations;
-
-		if (HasEndOfMapVoteFinished())
-		{
-			// Is this to one client or public?
-			if (text[startidx] == '/')
-			{
-				PrintToChat(client, "\x04[Noms]\x01 -map vote completed-");
-			}
-			else
-			{
-				PrintToChatAll("\x04[Noms]\x01 -map vote completed-");
-			}
-		}
-		else
-		{
-			if ( (numNominations = GetArraySize(g_NominateList)) == GetArraySize(g_NominateOwners) )
-			{
-				new String:map[64];
-				new clientIndex;
-				new String:name[65];
-				
-				if (numNominations == 0)
-				{
-					// Is this to one client or public?
-					if (text[startidx] == '/')
-					{
-						PrintToChat(client, "\x04[Noms]\x01 -empty-");
-					}
-					else
-					{
-						PrintToChatAll("\x04[Noms]\x01 -empty-");
-					}
-				}
-				else
-				{
-					for (new i = 0; i < numNominations; i++)
-					{		
-						GetArrayString(g_NominateList, i, map, sizeof(map));
-
-						clientIndex = GetArrayCell(g_NominateOwners, i);
-						
-						// Did an admin force a nomination?
-						if (clientIndex == 0)
-						{
-							name = "Console";
-						}
-						else
-						{
-							GetClientName(clientIndex, name, sizeof(name));
-						}
-						
-						// Print this to one client or public?
-						if (text[startidx] == '/')
-						{
-							PrintToChat(client, "\x04[Noms]\x01 %s (%s)", map, name);
-						}
-						else
-						{
-							PrintToChatAll("\x04[Noms]\x01 %s (%s)", map, name);
-						}
-					}
-				}
-			}
-			else
-			{
-				// We failed to get the same size arrays back from mapchooser!
-				PrintToServer("[noms.smx]: ERROR - mapchooser array size mismatch");
-				LogToGame("[noms.smx]: ERROR - mapchooser array size mismatch");
-			}
-		}
-
-		// Silently return for '/'.
-		if (text[startidx] == '/')
-		{
-			return Plugin_Handled;
-		}
-	
+		displayNoms();
 	}
 
-	// We Continue so we don't block chat and we return the !noms command
-	return Plugin_Continue;
+	return Plugin_Handled;
 }
 
 
+public displayNoms()
+{
+	decl String:map[NAME_SIZE];
+	decl String:name[NAME_SIZE];
+	new owner;
+	new size;
 
+	ClearArray(g_NominateMaps);
+	ClearArray(g_NominateOwners);
+	
+	GetNominatedMapList(g_NominateMaps, g_NominateOwners);
+	size = GetArraySize(g_NominateMaps);
+
+	if (size == 0)
+	{
+		//nothing nominated
+		PrintToChatAll("\x04[Noms]\x01 -empty-");
+	}
+	else
+	{
+		//For each nominated map ...
+		for (new i = 0; i < size; i++)
+		{		
+			GetArrayString(g_NominateMaps, i, map, sizeof(map));
+			owner = GetArrayCell(g_NominateOwners, i);
+
+			// Did an admin force a nomination?
+			if (owner == 0)
+			{
+				name = ADMIN_NOMINATION;
+			}
+			else
+			{
+				GetClientName(owner, name, sizeof(name));
+			}
+
+			PrintToChatAll("\x04[Noms]\x01 %s (%s)", map, name);
+		}
+	}
+
+}
