@@ -9,6 +9,15 @@
 // * Changelog (date/version/description):
 // * 2013-01-23	-	0.1.1		-	initial dev version
 // * 2013-03-17 -   0.1.1.1     -   Added new array handling
+// * 2013-03-17 -   0.1.2		-   Changed so map and player name print on same line.
+// * 2013-03-17 -   0.1.3		-   Check for console, check for empty noms list.
+// * 2013-03-17 -   0.1.4		-   Changed to use Plugin_Handled, added color.
+// * 2013-03-17 -   0.1.5		-   added test for map vote completed.
+// * 2013-03-17 -   0.1.6		-   fixed chat not showing up
+// * 2013-03-18 -   1.0.0		-   bumped version for release, commented out debug msg
+// * 2013-03-18 -   1.0.1		-   uncommented accidentally commented out debug msg, return !noms command to chat
+// * 2013-03-18 -   1.1.0		-   added tests to honor "/" silent chat
+// *                                
 //	------------------------------------------------------------------------------------
 
 
@@ -17,7 +26,7 @@
 
 #pragma semicolon 1
 
-#define PLUGIN_VERSION	"0.1.1.1"
+#define PLUGIN_VERSION	"1.1.0"
 
 new Handle:g_NominateList = INVALID_HANDLE;
 new Handle:g_NominateOwners = INVALID_HANDLE;
@@ -67,52 +76,87 @@ public Action:Command_Say(client, const String:command[], args)
 
 		GetNominatedMapList(g_NominateList, g_NominateOwners);
 		
-		if ( (g_NominateList == INVALID_HANDLE) && (g_NominateOwners == INVALID_HANDLE) )
+		new numNominations;
+
+		if (HasEndOfMapVoteFinished())
 		{
-			PrintToServer("[noms.smx]: Invalid arrays");
-			LogToGame("[noms.smx]: Invalid arrays");
+			// Is this to one client or public?
+			if (text[startidx] == '/')
+			{
+				PrintToChat(client, "\x04[Noms]\x01 -map vote completed-");
+			}
+			else
+			{
+				PrintToChatAll("\x04[Noms]\x01 -map vote completed-");
+			}
 		}
 		else
 		{
-			if (g_NominateList != INVALID_HANDLE)
+			if ( (numNominations = GetArraySize(g_NominateList)) == GetArraySize(g_NominateOwners) )
 			{
-				new NominateListSize;		
-				NominateListSize = GetArraySize(g_NominateList);
-				PrintToServer("[noms.smx]: MapArray Size=%d", NominateListSize);
-				LogToGame("[noms.smx]: MapArray Size=%d", NominateListSize);
-
-				new String:map[33];
+				new String:map[64];
+				new clientIndex;
+				new String:name[65];
 				
-				for (new i = 0; i < NominateListSize; i++)
-				{		
-					GetArrayString(g_NominateList, i, map, sizeof(map));
-					PrintToChatAll("Noms: %s", map);
+				if (numNominations == 0)
+				{
+					// Is this to one client or public?
+					if (text[startidx] == '/')
+					{
+						PrintToChat(client, "\x04[Noms]\x01 -empty-");
+					}
+					else
+					{
+						PrintToChatAll("\x04[Noms]\x01 -empty-");
+					}
+				}
+				else
+				{
+					for (new i = 0; i < numNominations; i++)
+					{		
+						GetArrayString(g_NominateList, i, map, sizeof(map));
+
+						clientIndex = GetArrayCell(g_NominateOwners, i);
+						
+						// Did an admin force a nomination?
+						if (clientIndex == 0)
+						{
+							name = "Console";
+						}
+						else
+						{
+							GetClientName(clientIndex, name, sizeof(name));
+						}
+						
+						// Print this to one client or public?
+						if (text[startidx] == '/')
+						{
+							PrintToChat(client, "\x04[Noms]\x01 %s (%s)", map, name);
+						}
+						else
+						{
+							PrintToChatAll("\x04[Noms]\x01 %s (%s)", map, name);
+						}
+					}
 				}
 			}
-					
-			if (g_NominateOwners != INVALID_HANDLE)
+			else
 			{
-				new NominateOwnersSize;
-				NominateOwnersSize = GetArraySize(g_NominateOwners);
-				PrintToServer("[noms.smx]: OwnerArray Size=%d", NominateOwnersSize);
-				LogToGame("[noms.smx]: OwnerArray Size=%d", NominateOwnersSize);
-
-				new clientIndex;
-				new String:name[32];
-
-				for (new i = 0; i < NominateOwnersSize; i++)
-				{		
-					clientIndex = GetArrayCell(g_NominateOwners, i);
-
-					GetClientName(clientIndex, name, sizeof(name));
-					
-					PrintToChatAll("Noms: %s", name);
-				}
+				// We failed to get the same size arrays back from mapchooser!
+				PrintToServer("[noms.smx]: ERROR - mapchooser array size mismatch");
+				LogToGame("[noms.smx]: ERROR - mapchooser array size mismatch");
 			}
 		}
-		
+
+		// Silently return for '/'.
+		if (text[startidx] == '/')
+		{
+			return Plugin_Handled;
+		}
+	
 	}
-		
+
+	// We Continue so we don't block chat and we return the !noms command
 	return Plugin_Continue;
 }
 
