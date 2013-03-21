@@ -18,6 +18,7 @@
 // * 2013-03-20 -   1.2.0		-   Billeh: code cleanup, now use registered command
 // * 2013-03-20 -   1.2.1		-   style cleanup
 // * 2013-03-21 -   1.2.2		-   Number maps in printout, check for mapchooser dependency
+// * 2013-03-21 -   1.2.3		-   Show next map if vote already happened. (lifted from basetriggers.smx)
 // *                                
 //	------------------------------------------------------------------------------------
 
@@ -29,7 +30,7 @@
 
 #define PLUGIN_VERSION	"1.2.2"
 #define ADMIN_NOMINATION "Console"
-#define VOTE_COMPLETED "-map vote completed-"
+#define VOTE_COMPLETED "Next Map:"
 #define EMPTY_NOMSLIST "-empty-"
 #define NAME_SIZE 32
 
@@ -60,11 +61,11 @@ public OnAllPluginsLoaded()
 	// Check dependencies
 	if ( FindPluginByFile("mapchooser.smx") == INVALID_HANDLE )
 	{
-//		PrintToChatAll("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
-//		PrintToServer("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
-//		LogMessage("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
 		SetFailState("[Noms]: ERROR - required plugin mapchooser.smx not found, exiting");
 	}
+
+//	mapchooser = LibraryExists("mapchooser");
+
 }
 
 
@@ -73,7 +74,9 @@ public Action:Command_Noms(client, args)
 
 	if (HasEndOfMapVoteFinished())
 	{
-		PrintToChatAll("\x04[Noms]\x01 %s", VOTE_COMPLETED);
+		decl String:map[64];
+		GetNextMap(map, sizeof(map));
+		PrintToChatAll("\x04[Noms]\x01 %s %s", VOTE_COMPLETED, map);
 	}
 	else
 	{
