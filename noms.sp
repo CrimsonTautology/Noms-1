@@ -15,8 +15,9 @@
 // * 2013-03-18 -   1.0.0		-   bumped version for release, commented out debug msg
 // * 2013-03-18 -   1.0.1		-   uncommented accidentally commented out debug msg, return !noms command to chat
 // * 2013-03-18 -   1.1.0		-   added tests to honor "/" silent chat
-// * 2013-03-18 -   1.2.0		-   Billeh: code cleanup, now use registered command
-// * 2013-03-18 -   1.2.1		-   style cleanup
+// * 2013-03-20 -   1.2.0		-   Billeh: code cleanup, now use registered command
+// * 2013-03-20 -   1.2.1		-   style cleanup
+// * 2013-03-21 -   1.2.2		-   Number maps in printout, check for mapchooser dependency
 // *                                
 //	------------------------------------------------------------------------------------
 
@@ -26,8 +27,10 @@
 
 #pragma semicolon 1
 
-#define PLUGIN_VERSION	"1.2.1"
+#define PLUGIN_VERSION	"1.2.2"
 #define ADMIN_NOMINATION "Console"
+#define VOTE_COMPLETED "-map vote completed-"
+#define EMPTY_NOMSLIST "-empty-"
 #define NAME_SIZE 32
 
 new Handle:g_NominateMaps = INVALID_HANDLE;
@@ -52,12 +55,25 @@ public OnPluginStart()
 }
 
 
+public OnAllPluginsLoaded()
+{
+	// Check dependencies
+	if ( FindPluginByFile("mapchooser.smx") == INVALID_HANDLE )
+	{
+//		PrintToChatAll("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
+//		PrintToServer("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
+//		LogMessage("[Noms]: ERROR - plugin mapchooser.smx not found, exiting");
+		SetFailState("[Noms]: ERROR - required plugin mapchooser.smx not found, exiting");
+	}
+}
+
+
 public Action:Command_Noms(client, args)
 {
 
 	if (HasEndOfMapVoteFinished())
 	{
-		PrintToChatAll("\x04[Noms]\x01 -map vote completed-");
+		PrintToChatAll("\x04[Noms]\x01 %s", VOTE_COMPLETED);
 	}
 	else
 	{
@@ -84,7 +100,7 @@ public displayNoms()
 	if (size == 0)
 	{
 		//nothing nominated
-		PrintToChatAll("\x04[Noms]\x01 -empty-");
+		PrintToChatAll("\x04[Noms]\x01 %s", EMPTY_NOMSLIST);
 	}
 	else
 	{
@@ -104,7 +120,7 @@ public displayNoms()
 				GetClientName(owner, name, sizeof(name));
 			}
 
-			PrintToChatAll("\x04[Noms]\x01 %s (%s)", map, name);
+			PrintToChatAll("\x04[Noms]\x01 %d. %s (%s)", (i+1), map, name);
 		}
 	}
 
