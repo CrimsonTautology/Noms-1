@@ -28,7 +28,7 @@
 
 #pragma semicolon 1
 
-#define PLUGIN_VERSION	"1.2.2"
+#define PLUGIN_VERSION	"1.2.3"
 #define ADMIN_NOMINATION "Console"
 #define VOTE_COMPLETED "Next Map:"
 #define EMPTY_NOMSLIST "-empty-"
